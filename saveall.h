@@ -20,17 +20,22 @@ class SaveAll : public QSettings
 {
 public:
     SaveAll(const QString &fileName, Objects* ...object) :
-        QSettings{fileName, QSettings::Format::IniFormat}
+        QSettings{fileName, Format::IniFormat}
     {
-        (objects.push_back(object),...);
+        (objects_.push_back(object),...);
+    }
+    void unbindObject(const QObject* object)
+    {
+        unbindedObjects_.push_back(object->objectName());
     }
     void save()
     {
-        for (QObject *object : objects) {
+        for (QObject *object : objects_) {
             QObjectList children = object->children();
             if (children.isEmpty()) return;
             for (QObject *child : children) {
-                if (child->isWidgetType()) {
+                bool objectFound = unbindedObjects_.contains(child->objectName());
+                if (child->isWidgetType() && !objectFound) {
                     saveProperty(child);
                 }
             }
@@ -38,11 +43,12 @@ public:
     }
     void load()
     {
-        for (QObject *object : objects) {
+        for (QObject *object : objects_) {
             QObjectList children = object->children();
             if (children.isEmpty()) return;
             for (QObject *child : children) {
-                if (child->isWidgetType()) {
+                bool objectFound = unbindedObjects_.contains(child->objectName());
+                if (child->isWidgetType() && !objectFound) {
                     loadProperty(child);
                 }
             }
@@ -104,7 +110,8 @@ private:
         endGroup();
     }
 private:
-    QVector<QObject*> objects;
+    QVector<QString> unbindedObjects_;
+    QVector<QObject*> objects_;
 };
 
 #endif // SAVEALL_H
